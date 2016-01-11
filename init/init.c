@@ -57,7 +57,6 @@
 #include "util.h"
 #include "ueventd.h"
 #include "watchdogd.h"
-#include "vendor_init.h"
 
 struct selabel_handle *sehandle;
 struct selabel_handle *sehandle_prop;
@@ -515,9 +514,6 @@ static void msg_restart(const char *name)
 
 void handle_control_message(const char *msg, const char *arg)
 {
-    if (!vendor_handle_control_message(msg, arg))
-        return;
-
     if (!strcmp(msg,"start")) {
         msg_start(arg);
     } else if (!strcmp(msg,"stop")) {
@@ -927,6 +923,9 @@ static bool selinux_is_disabled(void)
 static bool selinux_is_enforcing(void)
 {
 #ifdef ALLOW_DISABLE_SELINUX
+    /* things are getting hairier... disable during initial porting */
+    return false;
+
     char tmp[PROP_VALUE_MAX];
 
     if (property_get("ro.boot.selinux", tmp) == 0) {
@@ -1010,7 +1009,11 @@ static void selinux_initialize(void)
     }
 
     selinux_init_all_handles();
+#ifndef MTK_HARDWARE
+    bool is_enforcing = false; // Always making selinux permissive for MTK's rild
+#else
     bool is_enforcing = selinux_is_enforcing();
+#endif
     INFO("SELinux: security_setenforce(%d)\n", is_enforcing);
     security_setenforce(is_enforcing);
 }
