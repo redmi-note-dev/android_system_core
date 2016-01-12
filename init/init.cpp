@@ -63,7 +63,6 @@
 #include "util.h"
 #include "ueventd.h"
 #include "watchdogd.h"
-#include "vendor_init.h"
 
 struct selabel_handle *sehandle;
 struct selabel_handle *sehandle_prop;
@@ -536,9 +535,6 @@ static void msg_restart(const char *name)
 
 void handle_control_message(const char *msg, const char *arg)
 {
-    if (!vendor_handle_control_message(msg, arg))
-        return;
-
     if (!strcmp(msg,"start")) {
         msg_start(arg);
     } else if (!strcmp(msg,"stop")) {
@@ -988,7 +984,11 @@ static void selinux_initialize(bool in_kernel_domain) {
             security_failure();
         }
 
-        bool is_enforcing = selinux_is_enforcing();
+        #ifndef MTK_HARDWARE
+            bool is_enforcing = false; // Always making selinux permissive for MTK's rild
+        #else
+            bool is_enforcing = selinux_is_enforcing();
+        #endif
         security_setenforce(is_enforcing);
 
         if (write_file("/sys/fs/selinux/checkreqprot", "0") == -1) {
